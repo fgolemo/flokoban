@@ -62,7 +62,11 @@ class PushingObjects(object):
         self.compute_reward()
 
     def compute_reward(self):
-        self._reward = np.linalg.norm(self._objects - self._goals, ord=1)
+        self._reward = 0
+        for obj in self._objects:
+            for goal in self._goals:
+                if (obj == goal).all():
+                    self._reward += 1
         return self._reward
 
     def act(self, action=np.array([0])):
@@ -102,9 +106,9 @@ class PushingObjects(object):
             self._grid[goal_pos[0], goal_pos[1]] = 3
 
     def compute_observation(self):
-        obs_agent = np.zeros((self._grid_size, self._grid_size), dtype=np.uint8)
-        obs_objects = np.zeros((self._grid_size, self._grid_size), dtype=np.uint8)
-        obs_goals = np.zeros((self._grid_size, self._grid_size), dtype=np.uint8)
+        obs_agent = np.zeros((self._grid_size, self._grid_size), dtype=np.float32)
+        obs_objects = np.zeros((self._grid_size, self._grid_size), dtype=np.float32)
+        obs_goals = np.zeros((self._grid_size, self._grid_size), dtype=np.float32)
 
         obs_agent[self._agent_pos[0], self._agent_pos[1]] = 1
         for obj_pos in self._objects:
@@ -116,9 +120,6 @@ class PushingObjects(object):
     def terminate(self):
 
         # We reset stuffs to None to generate errors if called
-        self._objects_initial_poses = None
-        self._objects_rewarding_poses = None
-        self._actual_objects_poses = None
         self._reward = None
         self._action_space = None
         self._observation = None
@@ -150,12 +151,18 @@ if __name__ == '__main__':
     actor.reset()
     actor.compute_grid()
     print(actor._grid)
+    actor.compute_reward()
     actor._agent_pos = np.array([7, 0])
-    actor._objects[0] = np.array([8, 0])
+    actor._objects[0] = np.array([7, 1])
+    actor._objects[1] = np.array([7, 2])
+    actor._goals[1] = np.array([7, 2])
     actor.compute_grid()
     print(actor._grid)
-    actor.act(np.array([1]))
+    actor.act(np.array([3]))
     actor.compute_grid()
     print(actor._grid)
+    actor.compute_reward()
+    print(actor.reward)
     actor.compute_observation()
     actor.act(np.array([0]))
+    print(actor.observation.shape)
