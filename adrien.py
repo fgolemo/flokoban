@@ -1,7 +1,9 @@
 import itertools
 import random
-
+import time
 import numpy as np
+
+from matplotlib import pyplot as plt
 
 
 class PushingObjects(object):
@@ -87,6 +89,12 @@ class PushingObjects(object):
             if not occupied:
                 self._agent_pos += move
 
+        if self._render:
+            self.compute_observation()
+            self._ax.imshow(self.observation.transpose(1, 2, 0))
+            plt.draw()
+            plt.pause(0.01)
+
     def _is_occupied(self, pos):
         for obj in self._objects:
             if (pos == obj).all():
@@ -116,6 +124,12 @@ class PushingObjects(object):
         for goal_pos in self._goals:
             obs_goals[goal_pos[0], goal_pos[1]] = 1
         self._observation = np.array([obs_agent, obs_objects, obs_goals])
+
+    def render(self):
+        plt.ion()
+        self._render = True
+        self._figure = plt.figure()
+        self._ax = self._figure.add_subplot(111)
 
     def terminate(self):
 
@@ -158,11 +172,13 @@ if __name__ == '__main__':
     actor._goals[1] = np.array([7, 2])
     actor.compute_grid()
     print(actor._grid)
-    actor.act(np.array([3]))
+    actor.render()
+    for _ in range(10):
+        actor.act(np.random.randint(5, size=1))
     actor.compute_grid()
     print(actor._grid)
     actor.compute_reward()
     print(actor.reward)
     actor.compute_observation()
     actor.act(np.array([0]))
-    print(actor.observation.shape)
+    print(actor.observation)
