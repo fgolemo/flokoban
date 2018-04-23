@@ -62,6 +62,12 @@ class PushingObjects(object):
 
         # We compute the initial reward.
         self.compute_reward()
+        if self._reward == self._object_count:
+            self._done = True
+        else:
+            self._done = False
+        return self._done
+
 
     def compute_reward(self):
         self._reward = 0
@@ -94,6 +100,11 @@ class PushingObjects(object):
             self._ax.imshow(self.observation.transpose(1, 2, 0))
             plt.draw()
             plt.pause(0.01)
+
+        self.compute_reward()
+        if self._reward == self._object_count:
+            self._done = True
+        return self._done
 
     def _is_occupied(self, pos):
         for obj in self._objects:
