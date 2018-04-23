@@ -3,6 +3,7 @@ import random
 
 import numpy as np
 
+
 class PushingObjects(object):
     """The Sokoban environment.
     """
@@ -28,32 +29,41 @@ class PushingObjects(object):
         self._grid = None
         self._agent_pos = None
 
+    def env_seed(self, seed):
+        # TODO: fix it
+        np.random.seed(seed)
+
     def reset(self):
 
-        self._grid = np.zeros((self._grid_size, self._grid_size), dtype=np.uint8)
-        self._agent_pos = np.random.randint(0,self._grid_size,(2))
-        self._grid[self._agent_pos[0],self._agent_pos[1]] = 1
+        self._agent_pos = np.random.randint(0, self._grid_size, (2))
 
         # create a list of all available cells in the grid
-        available_cells = list(itertools.combinations(range(self._grid_size), 2))
+        cells = list(itertools.product(range(self._grid_size), range(self._grid_size)))
+        available_cells = list(itertools.product(range(self._grid_size), range(self._grid_size)))
 
         available_cells.remove(tuple(self._agent_pos))
 
+        self._objects = []
+        self._goals = []
         for obj_idx in range(self._object_count):
             obj_pos = random.sample(available_cells, 1)[0]
             available_cells.remove(obj_pos)
-            #TODO: randomly sample goal in the same way
-            #TODO: then add both goal and obj to the internal list of objects/goals
+            self._objects.append(obj_pos)
+        self._objects = np.array(self._objects)
+        for goal_idx in range(self._object_count):
+            goal = random.sample(cells, 1)[0]
+            self._goals.append(goal)
+        self._goals = np.array(self._goals)
 
-
-        # TODO: create observation function
-        # TODO: call observation function here and set it to initial obs
-
-        # self._observation = np.concatenate([self._agent_pose, self._objects_initial_poses])
+        self.compute_grid()
+        self.compute_observation()
 
         # We compute the initial reward.
-        # TODO: move reward into separate function
-        self._reward = np.linalg.norm(self._actual_objects_poses - self._objects_rewarding_poses, ord=2)
+        self.compute_reward()
+
+    def compute_reward(self):
+        self._reward = np.linalg.norm(self._objects - self._goals, ord=1)
+        return self._reward
 
     def act(self, action=np.array([0])):
         """Perform an agent action in the Environment
@@ -63,25 +73,45 @@ class PushingObjects(object):
 
         # We compute the new positions
         move = self._moves[action[0]]
-        if self._in_grid(self._agent_pose + move):
-            occupied, object_pose = self._is_occupied(self._agent_pose + move)
-            if occupied == True and self._in_grid(object_pose + move):
-                raise NotImplementedError
+        if self._in_grid(self._agent_pos + move):
+            occupied, object_pose = self._is_occupied(self._agent_pos + move)
+            if occupied and self._in_grid(object_pose + move):
+                blocked, _ = self._is_occupied(object_pose + move)
+                if not blocked:
+                    object_pose += move
+                    self._agent_pos += move
+            if not occupied:
+                self._agent_pos += move
 
-            for object_pose in self._objects_initial_poses:
-                if object_pose[0] == self._agent_pose[0] + 1 and object_pose[1] == self._agent_pose[1] + 1:
-                    raise NotImplementedError
-            # Move down
-            self._agent_pose[0] += 1
-
-    def _is_occupied(self, pose):
-        for object_pose in self._actual_objects_poses:
-            if (pose == object_pose):
-                return True, object_pose
+    def _is_occupied(self, pos):
+        for obj in self._objects:
+            if (pos == obj).all():
+                return True, obj
         return False, False
 
     def _in_grid(self, pose):
         return (pose >= 0).all() and (pose < self._grid_size).all()
+
+    def compute_grid(self):
+        self._grid = np.zeros((self._grid_size, self._grid_size), dtype=np.uint8)
+        self._grid[self._agent_pos[0], self._agent_pos[1]] = 1
+
+        for obj_pos in self._objects:
+            self._grid[obj_pos[0], obj_pos[1]] = 2
+        for goal_pos in self._goals:
+            self._grid[goal_pos[0], goal_pos[1]] = 3
+
+    def compute_observation(self):
+        obs_agent = np.zeros((self._grid_size, self._grid_size), dtype=np.uint8)
+        obs_objects = np.zeros((self._grid_size, self._grid_size), dtype=np.uint8)
+        obs_goals = np.zeros((self._grid_size, self._grid_size), dtype=np.uint8)
+
+        obs_agent[self._agent_pos[0], self._agent_pos[1]] = 1
+        for obj_pos in self._objects:
+            obs_objects[obj_pos[0], obj_pos[1]] = 1
+        for goal_pos in self._goals:
+            obs_goals[goal_pos[0], goal_pos[1]] = 1
+        self._observation = np.array([obs_agent, obs_objects, obs_goals])
 
     def terminate(self):
 
@@ -112,3 +142,20 @@ class PushingObjects(object):
     def test(cls):
 
         pass
+
+
+if __name__ == '__main__':
+    actor = PushingObjects()
+    actor.env_seed(0)
+    actor.reset()
+    actor.compute_grid()
+    print(actor._grid)
+    actor._agent_pos = np.array([7, 0])
+    actor._objects[0] = np.array([8, 0])
+    actor.compute_grid()
+    print(actor._grid)
+    actor.act(np.array([1]))
+    actor.compute_grid()
+    print(actor._grid)
+    actor.compute_observation()
+    actor.act(np.array([0]))
